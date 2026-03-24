@@ -5,6 +5,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import jwt from 'jsonwebtoken';
 import { PrismaClient } from '@prisma/client';
+import cron from 'node-cron'; // <-- Added this for automated background jobs
 
 const prisma = new PrismaClient();
 const app = express();
@@ -19,33 +20,58 @@ const JWT_SECRET = "velozity_secret_2026";
 
 // RBAC Middleware
 const authenticate = (req: any, res: any, next: any) => {
-  const token = req.cookies.access_token;
-  if (!token) return res.status(401).json({ message: "Unauthorized" });
+  const authHeader = req.headers.authorization;
+  const token = authHeader && authHeader.split(' ')[1]; // "Bearer TOKEN"
+
+  if (!token) return res.status(401).json({ message: "No token provided" });
+
   try {
     req.user = jwt.verify(token, JWT_SECRET);
     next();
-  } catch (err) { res.status(401).json({ message: "Invalid Token" }); }
+  } catch (err) {
+    res.status(401).json({ message: "Invalid Token" });
+  }
 };
 
 // --- ROUTES ---
 
-// 1. Home (Just to stop the "Cannot GET /" error)
 app.get('/', (req, res) => res.send("Backend is API-Ready"));
 
-// 2. Login
+// 1. Login
 app.post('/api/login', async (req, res) => {
   const { email, password } = req.body;
-  const user = await prisma.user.findUnique({ where: { email } });
-  
-  if (user && password === "password123") { // Replace with bcrypt in real use
-    const token = jwt.sign({ id: user.id, role: user.role, name: user.name }, JWT_SECRET);
-    res.cookie('access_token', token, { httpOnly: true, sameSite: 'lax' });
-    return res.json({ role: user.role, name: user.name });
+  console.log(`Login attempt: ${email} / ${password}`); // Check your terminal for this!
+
+  try {
+    const user = await prisma.user.findUnique({ where: { email } });
+
+    if (!user) {
+      console.log("❌ User not found in database");
+      return res.status(401).json({ message: "User not found" });
+    }
+
+    // For Plan B, we match the plain text 'password123' 
+    // because our seed uses that.
+    if (password === "password123") {
+      const token = jwt.sign(
+        { id: user.id, role: user.role, name: user.name }, 
+        JWT_SECRET, 
+        { expiresIn: '1h' }
+      );
+
+      console.log("✅ Login successful for:", user.name);
+      return res.json({ token, role: user.role, name: user.name });
+    } else {
+      console.log("❌ Password mismatch");
+      return res.status(401).json({ message: "Invalid password" });
+    }
+  } catch (err) {
+    console.error("Internal Server Error:", err);
+    res.status(500).json({ message: "Server error" });
   }
-  res.status(401).json({ message: "Invalid credentials" });
 });
 
-// 3. Get Tasks
+// 2. Get Tasks
 app.get('/api/tasks', authenticate, async (req, res) => {
   try {
     const tasks = await prisma.task.findMany({
@@ -57,38 +83,56 @@ app.get('/api/tasks', authenticate, async (req, res) => {
   }
 });
 
-// 4. Update Task (Real-time)
-// Replace or add this route in your server.ts
+// 3. Update Task (Real-time Broadcast)
 app.patch('/api/tasks/:id', authenticate, async (req: any, res) => {
   const { id } = req.params;
   const { status } = req.body;
 
   try {
-    // 1. Update the Task in PostgreSQL
     const updatedTask = await prisma.task.update({
       where: { id: id },
       data: { status: status },
     });
 
-    // 2. Create an Activity Log entry (for the history requirement)
-    const log = await prisma.activityLog.create({
-      data: {
-        message: `${req.user.name} changed task "${updatedTask.title}" to ${status}`,
-        userId: req.user.id,
-        role: req.user.role // Store the role to filter who sees it later
-      }
-    });
-
-    // 3. BROADCAST: Tell all connected clients via Socket.io
+    // Broadcast the update to all clients
+    const activityMessage = `${req.user.name} changed task "${updatedTask.title}" to ${status}`;
+    
     io.emit('activity_feed', {
-      message: log.message,
-      timestamp: log.createdAt,
+      message: activityMessage,
+      timestamp: new Date(),
       userName: req.user.name
     });
 
     res.json(updatedTask);
   } catch (error) {
     res.status(500).json({ error: "Failed to update task" });
+  }
+});
+
+// --- AUTOMATED BACKGROUND JOB ---
+// Runs every minute to check for overdue tasks
+cron.schedule('* * * * *', async () => {
+  const now = new Date();
+  
+  try {
+    const overdueTasks = await prisma.task.updateMany({
+      where: {
+        dueDate: { lt: now },
+        status: { notIn: ['COMPLETED', 'OVERDUE'] }
+      },
+      data: { status: 'OVERDUE' }
+    });
+
+    if (overdueTasks.count > 0) {
+      io.emit('activity_feed', {
+        message: `System: ${overdueTasks.count} tasks were marked as OVERDUE automatically.`,
+        timestamp: new Date(),
+        userName: "System"
+      });
+      console.log(`✅ System updated ${overdueTasks.count} overdue tasks.`);
+    }
+  } catch (err) {
+    console.error("Cron Error:", err);
   }
 });
 

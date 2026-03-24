@@ -7,39 +7,59 @@ export default function Dashboard() {
   const [tasks, setTasks] = useState<any[]>([]);
 
   useEffect(() => {
-    // 1. Get user info from localStorage
+    // 1. Get user and token from localStorage
     const savedUser = JSON.parse(localStorage.getItem('user') || '{}');
+    const token = localStorage.getItem('token');
+    
     setUser(savedUser);
 
-    // 2. Fetch Tasks from Backend
+    // 2. Fetch Tasks using the Authorization Header
     const fetchTasks = async () => {
       try {
         const res = await axios.get('http://localhost:5000/api/tasks', { 
-          withCredentials: true 
+          headers: { 
+            Authorization: `Bearer ${token}` 
+          }
         });
         setTasks(res.data);
       } catch (err) {
-        console.error("Could not fetch tasks - check if you are logged in!");
+        console.error("Could not fetch tasks - redirecting to login");
+        // Optional: window.location.href = '/login';
       }
     };
-    fetchTasks();
+
+    if (token) {
+      fetchTasks();
+    }
   }, []);
 
   const handleStatusUpdate = async (taskId: string, newStatus: string) => {
+    const token = localStorage.getItem('token');
+    
     try {
-      // API call to update the task
+      // API call with manual Authorization header
       await axios.patch(`http://localhost:5000/api/tasks/${taskId}`, 
         { status: newStatus }, 
-        { withCredentials: true }
+        { 
+          headers: { 
+            Authorization: `Bearer ${token}` 
+          } 
+        }
       );
       
-      // Update local state so the list reflects the change instantly
+      // Update local state for immediate UI feedback
       setTasks(prev => prev.map(t => 
         t.id === taskId ? { ...t, status: newStatus } : t
       ));
     } catch (err) {
       alert("Permission Denied: Only Admins/Managers can update task status.");
     }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = '/login';
   };
 
   return (
@@ -49,11 +69,19 @@ export default function Dashboard() {
           <h1 className="text-3xl font-bold text-gray-800">Project Dashboard</h1>
           <p className="text-sm text-gray-500">Real-time task management</p>
         </div>
-        <div className="text-right">
-          <p className="font-bold text-gray-900">{user?.name}</p>
-          <span className="text-xs font-bold bg-blue-100 text-blue-700 px-3 py-1 rounded-full uppercase tracking-wider">
-            {user?.role}
-          </span>
+        <div className="flex items-center gap-6">
+          <div className="text-right">
+            <p className="font-bold text-gray-900">{user?.name}</p>
+            <span className="text-xs font-bold bg-blue-100 text-blue-700 px-3 py-1 rounded-full uppercase tracking-wider">
+              {user?.role}
+            </span>
+          </div>
+          <button 
+            onClick={handleLogout}
+            className="text-sm text-red-600 hover:underline font-medium"
+          >
+            Logout
+          </button>
         </div>
       </header>
 
@@ -64,7 +92,7 @@ export default function Dashboard() {
           
           {tasks.length === 0 && (
             <div className="bg-white p-10 text-center rounded border-2 border-dashed border-gray-200 text-gray-400">
-              No tasks found. Ensure the seed script has been run.
+              No tasks found. Ensure the seed script has been run and you are logged in.
             </div>
           )}
 
