@@ -1,138 +1,236 @@
-import { useEffect, useState } from 'react';
-import axios from 'axios';
-import ActivityFeed from '../components/ActivityFeed';
+import React, { useState, useEffect } from 'react';
+import './Dashboard.css';
 
-export default function Dashboard() {
-  const [user, setUser] = useState<any>(null);
-  const [tasks, setTasks] = useState<any[]>([]);
+interface User {
+  id: string | number;
+  name: string;
+  email: string;
+  role: 'ADMIN' | 'MANAGER' | 'DEVELOPER';
+}
 
+interface Task {
+  id: string | number;
+  title: string; 
+  description?: string;
+  status: string;
+}
+
+const Dashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
+  const [activeTab, setActiveTab] = useState<string>('tasks');
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string>('');
+
+  // --- MODAL STATE ---
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [newTaskDesc, setNewTaskDesc] = useState('');
+  const [newProjectId, setNewProjectId] = useState(''); // NEW: Track Project ID
+
+  // Fetch Data
   useEffect(() => {
-    // 1. Get user and token from localStorage
-    const savedUser = JSON.parse(localStorage.getItem('user') || '{}');
-    const token = localStorage.getItem('token');
-    
-    setUser(savedUser);
+    const fetchRealData = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) { onLogout(); return; }
 
-    // 2. Fetch Tasks using the Authorization Header
-    const fetchTasks = async () => {
       try {
-        const res = await axios.get('http://localhost:5000/api/tasks', { 
-          headers: { 
-            Authorization: `Bearer ${token}` 
-          }
+        const response = await fetch('http://localhost:5000/api/dashboard-data', {
+          headers: { 'Authorization': `Bearer ${token}` }
         });
-        setTasks(res.data);
+        if (!response.ok) throw new Error("Unauthorized");
+        const data = await response.json();
+        setCurrentUser(data.user);
+        setTasks(data.tasks || []); 
       } catch (err) {
-        console.error("Could not fetch tasks - redirecting to login");
-        // Optional: window.location.href = '/login';
+        setError("Failed to load real data.");
+      } finally {
+        setIsLoading(false);
       }
     };
+    fetchRealData();
+  }, [onLogout]);
 
-    if (token) {
-      fetchTasks();
-    }
-  }, []);
+  const handleSignOut = () => {
+    localStorage.removeItem('token'); 
+    onLogout(); 
+  };
 
-  const handleStatusUpdate = async (taskId: string, newStatus: string) => {
+  const handleStatusChange = async (taskId: string | number, newStatus: string) => {
     const token = localStorage.getItem('token');
-    
+    if (!token) return;
+
+    setTasks(prevTasks => prevTasks.map(task => task.id === taskId ? { ...task, status: newStatus } : task));
     try {
-      // API call with manual Authorization header
-      await axios.patch(`http://localhost:5000/api/tasks/${taskId}`, 
-        { status: newStatus }, 
-        { 
-          headers: { 
-            Authorization: `Bearer ${token}` 
-          } 
-        }
-      );
-      
-      // Update local state for immediate UI feedback
-      setTasks(prev => prev.map(t => 
-        t.id === taskId ? { ...t, status: newStatus } : t
-      ));
-    } catch (err) {
-      alert("Permission Denied: Only Admins/Managers can update task status.");
+      await fetch(`http://localhost:5000/api/tasks/${taskId}`, {
+        method: 'PATCH',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      });
+    } catch (error) {
+      console.error("Error updating status:", error);
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    window.location.href = '/login';
+  // --- UPDATED: Handle Creating a Task with Project ID ---
+  const handleCreateTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    try {
+      const response = await fetch('http://localhost:5000/api/tasks', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ 
+          title: newTaskTitle, 
+          description: newTaskDesc,
+          projectId: newProjectId // Included to satisfy Prisma relation
+        })
+      });
+
+      if (response.ok) {
+        const createdTask = await response.json();
+        setTasks(prev => [createdTask, ...prev]);
+        setIsModalOpen(false);
+        setNewTaskTitle('');
+        setNewTaskDesc('');
+        setNewProjectId('');
+      } else {
+        const errData = await response.json();
+        alert(`Failed to create task: ${errData.message || "Ensure Project ID is valid"}`);
+      }
+    } catch (error) {
+      console.error(error);
+    }
   };
+
+  if (isLoading) return <div className="loading-screen">Loading...</div>;
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen font-sans">
-      <header className="flex justify-between items-center mb-8 bg-white p-6 rounded-lg shadow-sm">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-800">Project Dashboard</h1>
-          <p className="text-sm text-gray-500">Real-time task management</p>
+    <div className="dashboard-layout">
+      
+      {/* SIDEBAR */}
+      <aside className="corporate-sidebar">
+        <div className="sidebar-header">
+          <h2>Velozity<span className="text-red">Dash</span></h2>
         </div>
-        <div className="flex items-center gap-6">
-          <div className="text-right">
-            <p className="font-bold text-gray-900">{user?.name}</p>
-            <span className="text-xs font-bold bg-blue-100 text-blue-700 px-3 py-1 rounded-full uppercase tracking-wider">
-              {user?.role}
-            </span>
-          </div>
-          <button 
-            onClick={handleLogout}
-            className="text-sm text-red-600 hover:underline font-medium"
-          >
-            Logout
-          </button>
+        <nav className="sidebar-nav">
+          <button className={`nav-btn ${activeTab === 'tasks' ? 'active' : ''}`} onClick={() => setActiveTab('tasks')}>Tasks & Status</button>
+        </nav>
+        <div className="sidebar-footer">
+          <button className="logout-btn" onClick={handleSignOut}>Sign Out</button>
         </div>
-      </header>
+      </aside>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Task List Section */}
-        <div className="lg:col-span-2 space-y-4">
-          <h2 className="text-xl font-semibold text-gray-700">Active Tasks</h2>
-          
-          {tasks.length === 0 && (
-            <div className="bg-white p-10 text-center rounded border-2 border-dashed border-gray-200 text-gray-400">
-              No tasks found. Ensure the seed script has been run and you are logged in.
+      {/* MAIN CONTENT AREA */}
+      <main className="dashboard-main">
+        <header className="dashboard-header">
+          <div className="header-text-group">
+            <h1 className="greeting">Dashboard</h1>
+            <p className="subtitle">Welcome back, {currentUser?.name}</p>
+          </div>
+          <div className="user-profile">
+            <span className={`role-badge ${currentUser?.role?.toLowerCase()}`}>{currentUser?.role}</span>
+          </div>
+        </header>
+
+        {error && <div className="error-alert">{error}</div>}
+
+        <div className="dashboard-content">
+          {activeTab === 'tasks' && (
+            <div className="projects-view">
+              <div className="section-header">
+                <h2>Task Database</h2>
+                {(currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER') && (
+                  <button className="btn-primary" onClick={() => setIsModalOpen(true)}>
+                    Add New Task
+                  </button>
+                )}
+              </div>
+
+              <div className="data-grid">
+                {tasks.map(task => (
+                  <div key={task.id} className="corporate-card">
+                    <div className="card-header">
+                      <h3>{task.title}</h3>
+                      <select 
+                        value={task.status} 
+                        onChange={(e) => handleStatusChange(task.id, e.target.value)}
+                        className={`status-dropdown ${task.status.toLowerCase()}`}
+                      >
+                        <option value="TODO">To Do</option>
+                        <option value="IN_PROGRESS">In Progress</option>
+                        <option value="COMPLETED">Completed</option>
+                        <option value="OVERDUE">Overdue</option>
+                      </select>
+                    </div>
+                    <p className="description">{task.description || "No description provided."}</p>
+                    <div className="card-footer">
+                      <span className="project-id">ID: {task.id}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
-
-          {tasks.map(task => (
-            <div key={task.id} className="p-5 bg-white shadow-sm border border-gray-100 rounded-xl flex justify-between items-center hover:shadow-md transition-shadow">
-              <div className="space-y-1">
-                <h3 className="font-bold text-lg text-gray-800">{task.title}</h3>
-                <div className="flex items-center gap-3">
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${
-                    task.status === 'COMPLETED' ? 'bg-green-100 text-green-700' : 
-                    task.status === 'OVERDUE' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
-                  }`}>
-                    {task.status}
-                  </span>
-                  <span className="text-xs text-gray-400">
-                    ID: {task.id.substring(0, 8)}...
-                  </span>
-                </div>
-              </div>
-              
-              {/* RBAC Logic: Only Managers/Admins can change status to COMPLETED */}
-              {task.status !== 'COMPLETED' && (user?.role === 'ADMIN' || user?.role === 'MANAGER') && (
-                <button 
-                  onClick={() => handleStatusUpdate(task.id, 'COMPLETED')}
-                  className="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-lg text-sm font-semibold transition-colors shadow-sm"
-                >
-                  Mark Done
-                </button>
-              )}
-            </div>
-          ))}
         </div>
+      </main>
 
-        {/* Real-time Activity Feed Section */}
-        <div className="lg:col-span-1">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <ActivityFeed />
+      {/* --- MODAL POPUP --- */}
+      {isModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h2>Create New Task</h2>
+            <form onSubmit={handleCreateTask}>
+              {/* NEW: PROJECT ID INPUT */}
+              <div className="input-group" style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600 }}>Project ID</label>
+                <input 
+                  type="text" 
+                  value={newProjectId} 
+                  onChange={(e) => setNewProjectId(e.target.value)} 
+                  placeholder="Enter parent project ID"
+                  required 
+                  style={{ width: '100%', padding: '0.8rem', border: '1px solid #d4d4d8', borderRadius: '6px' }}
+                />
+              </div>
+
+              <div className="input-group" style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600 }}>Task Title</label>
+                <input 
+                  type="text" 
+                  value={newTaskTitle} 
+                  onChange={(e) => setNewTaskTitle(e.target.value)} 
+                  required 
+                  style={{ width: '100%', padding: '0.8rem', border: '1px solid #d4d4d8', borderRadius: '6px' }}
+                />
+              </div>
+
+              <div className="input-group">
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600 }}>Description</label>
+                <textarea 
+                  value={newTaskDesc} 
+                  onChange={(e) => setNewTaskDesc(e.target.value)} 
+                  required 
+                  rows={4}
+                  style={{ width: '100%', padding: '0.8rem', border: '1px solid #d4d4d8', borderRadius: '6px', resize: 'vertical' }}
+                />
+              </div>
+
+              <div className="modal-actions">
+                <button type="button" className="btn-secondary" onClick={() => setIsModalOpen(false)}>Cancel</button>
+                <button type="submit" className="btn-primary">Save Task</button>
+              </div>
+            </form>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
-}
+};
+
+export default Dashboard;

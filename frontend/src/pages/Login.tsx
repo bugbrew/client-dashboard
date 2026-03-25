@@ -1,50 +1,81 @@
-import { useState } from 'react';
-import axios from 'axios';
+import React, { useState } from 'react';
+// IMPORTANT: Make sure Login.css actually exists in this folder!
+import './Login.css';
 
-export default function Login() {
+const Login: React.FC<{ onLoginSuccess: () => void }> = ({ onLoginSuccess }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = async (e: any) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
+    setIsLoading(true);
+
     try {
-      const res = await axios.post('http://localhost:5000/api/login', { email, password });
-      
-      // SUCCESS: res.data now contains { token, role, name }
-      localStorage.setItem('token', res.data.token);
-      localStorage.setItem('user', JSON.stringify({ 
-        name: res.data.name, 
-        role: res.data.role 
-      }));
-      
-      // Move to dashboard
-      window.location.href = '/dashboard';
-    } catch (err) {
-      console.error(err);
-      alert("Login Failed: Check your email/password or Backend console.");
+      const response = await fetch('http://127.0.0.1:5000/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        localStorage.setItem('token', data.token);
+        onLoginSuccess(); 
+      } else {
+        setError(data.message || 'Invalid credentials');
+      }
+    } catch (err: any) {
+      console.error("DEBUG LOGIN ERROR:", err);
+      setError(`Error: ${err.message}`);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="flex h-screen items-center justify-center bg-gray-100">
-      <form onSubmit={handleLogin} className="p-8 bg-white shadow-md rounded-lg w-96">
-        <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">Velozity Login</h2>
-        <input 
-          type="email" 
-          placeholder="admin@test.com" 
-          className="border p-2 w-full mb-4 rounded" 
-          onChange={(e) => setEmail(e.target.value)} 
-        />
-        <input 
-          type="password" 
-          placeholder="password123" 
-          className="border p-2 w-full mb-6 rounded" 
-          onChange={(e) => setPassword(e.target.value)} 
-        />
-        <button className="bg-blue-600 hover:bg-blue-700 text-white w-full py-2 rounded font-bold transition">
-          Login
-        </button>
-      </form>
+    <div className="login-page">
+      <div className="login-card">
+        <h1 className="brand-title">Velozity<span className="text-red">Dash</span></h1>
+        <p className="brand-subtitle">Enter your credentials to access your workspace</p>
+
+        {error && <div className="error-message">{error}</div>}
+
+        <form onSubmit={handleSubmit}>
+          <div className="input-group">
+            <label>Email Address</label>
+            <input 
+              type="email" 
+              className="login-input"
+              value={email} 
+              onChange={(e) => setEmail(e.target.value)} 
+              placeholder="admin@test.com"
+              required 
+            />
+          </div>
+
+          <div className="input-group">
+            <label>Password</label>
+            <input 
+              type="password" 
+              className="login-input"
+              value={password} 
+              onChange={(e) => setPassword(e.target.value)} 
+              placeholder="••••••••"
+              required 
+            />
+          </div>
+
+          <button type="submit" className="login-btn" disabled={isLoading}>
+            {isLoading ? 'Signing In...' : 'Sign In'}
+          </button>
+        </form>
+      </div>
     </div>
   );
-}
+};
+
+export default Login;

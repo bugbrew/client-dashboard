@@ -1,0 +1,328 @@
+/* --- 1. CORPORATE VARIABLES --- */
+:root {
+  --bg-page: #f4f4f5;         /* Light grey for main background */
+  --bg-surface: #ffffff;      /* Pure white for cards */
+  --sidebar-bg: #18181b;      /* Almost black for sidebar */
+  
+  --text-main: #18181b;       /* Dark text for white backgrounds */
+  --text-muted: #71717a;      /* Grey text for subtitles */
+  --text-sidebar: #e4e4e7;    /* Light text for sidebar */
+  
+  --brand-red: #dc2626;       /* Professional Red */
+  --brand-red-hover: #b91c1c; /* Darker red for hover states */
+  
+  --border-light: #e4e4e7;    /* Subtle grey borders */
+  
+  --radius-sm: 6px;
+  --radius-md: 8px;
+}
+
+/* --- 2. LAYOUT FIXES (NO SLIDING) --- */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+body, html {
+  width: 100%;
+  height: 100%;
+  overflow: hidden; /* Stops whole-page scrolling */
+  background-color: var(--bg-page);
+}
+
+.dashboard-layout {
+  display: flex;
+  height: 100vh;
+  width: 100%; /* Changed from 100vw to fix horizontal scroll */
+  max-width: 100%;
+  overflow: hidden;
+  background-color: var(--bg-page);
+  color: var(--text-main);
+}
+
+.loading-screen {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  width: 100vw;
+  font-size: 1.2rem;
+  color: var(--text-muted);
+}
+
+/* --- 3. SIDEBAR (BLACK) --- */
+.corporate-sidebar {
+  width: 260px;
+  min-width: 260px;
+  height: 100%;
+  background-color: var(--sidebar-bg);
+  color: var(--text-sidebar);
+  display: flex;
+  flex-direction: column;
+  padding: 2rem 1.5rem;
+  box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+  z-index: 10;
+}
+
+.sidebar-header h2 {
+  font-size: 1.5rem;
+  margin-bottom: 2.5rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+
+.text-red {
+  color: var(--brand-red);
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex-grow: 1;
+}
+
+.nav-btn {
+  background: transparent;
+  color: #a1a1aa; /* Muted light grey */
+  border: none;
+  padding: 0.8rem 1rem;
+  border-radius: var(--radius-sm);
+  text-align: left;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.nav-btn:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+}
+
+.nav-btn.active {
+  background-color: var(--brand-red);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+/* --- 4. MAIN CONTENT (WHITE/GREY) --- */
+.dashboard-main {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow-y: auto; /* Only this scrolls vertically */
+  overflow-x: hidden; /* Prevents side-to-side wobble inside container */
+  padding: 2rem 3rem;
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border-light);
+  margin-bottom: 2rem;
+}
+
+.greeting {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 0.3rem;
+}
+
+.subtitle {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+/* --- 5. DATA CARDS & GRID --- */
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.data-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.5rem;
+}
+
+.corporate-card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 1.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+  transition: box-shadow 0.2s ease;
+}
+
+.corporate-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.card-header h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.description {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  margin-bottom: 1.5rem;
+}
+
+.card-footer {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border-light);
+  padding-top: 1rem;
+}
+
+/* --- 6. BADGES & BUTTONS --- */
+.role-badge {
+  padding: 0.4rem 0.8rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-weight: 600;
+  background-color: #f1f5f9;
+  border: 1px solid var(--border-light);
+}
+.role-badge.admin { background-color: #fee2e2; color: var(--brand-red); border-color: #fca5a5; }
+
+.status-badge {
+  padding: 0.25rem 0.6rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.status-badge.completed { background-color: #dcfce7; color: #166534; }
+.status-badge.in-progress { background-color: #fef9c3; color: #854d0e; }
+
+.btn-primary {
+  background-color: var(--brand-red);
+  color: #fff;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.btn-primary:hover {
+  background-color: var(--brand-red-hover);
+}
+
+.logout-btn {
+  width: 100%;
+  background: transparent;
+  color: #a1a1aa;
+  border: 1px solid #3f3f46;
+  padding: 0.8rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.logout-btn:hover {
+  border-color: var(--brand-red);
+  color: var(--brand-red);
+}
+
+.status-badge.completed { background-color: #dcfce7; color: #166534; } /* Green */
+.status-badge.in_progress { background-color: #fef08a; color: #854d0e; } /* Yellow */
+.status-badge.todo { background-color: #e2e8f0; color: #475569; } /* Grey */
+.status-badge.overdue { background-color: #fee2e2; color: #b91c1c; } /* Red */
+
+/* Styling the Select Dropdown to look like a badge */
+.status-dropdown {
+  appearance: none; /* Removes default browser styling */
+  padding: 0.4rem 2rem 0.4rem 0.8rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border: 1px solid transparent;
+  cursor: pointer;
+  outline: none;
+  font-family: inherit;
+  /* Adds a custom tiny dropdown arrow */
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 0.5rem center;
+  background-size: 1em;
+  transition: all 0.2s ease;
+}
+
+.status-dropdown:hover {
+  filter: brightness(0.95);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+/* Colors based on the current selected value */
+.status-dropdown.todo { background-color: #f1f5f9; color: #475569; border-color: #cbd5e1; }
+.status-dropdown.in_progress { background-color: #fef9c3; color: #854d0e; border-color: #fde047; }
+.status-dropdown.completed { background-color: #dcfce7; color: #166534; border-color: #86efac; }
+.status-dropdown.overdue { background-color: #fee2e2; color: #b91c1c; border-color: #fca5a5; }
+
+/* The dropdown menu options */
+.status-dropdown option {
+  background-color: white;
+  color: #18181b;
+  font-weight: 500;
+}
+
+
+
+
+/* --- MODAL STYLES --- */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.modal-content {
+  background: white;
+  padding: 2rem;
+  border-radius: 10px;
+  width: 100%;
+  max-width: 450px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+}
+
+.modal-content h2 { margin-top: 0; margin-bottom: 1.5rem; }
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.btn-secondary {
+  background: white; border: 1px solid #d4d4d8; padding: 0.6rem 1.2rem;
+  border-radius: 6px; cursor: pointer; font-weight: 600;
+}
