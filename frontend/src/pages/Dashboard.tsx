@@ -72,7 +72,7 @@ const Dashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
     }
   };
 
-  // --- UPDATED: Handle Creating a Task with Project ID ---
+  // --- UPDATE: Handle Creating a Task with Project ID ---
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
     const token = localStorage.getItem('token');
