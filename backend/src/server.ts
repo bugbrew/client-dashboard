@@ -28,7 +28,7 @@ const JWT_SECRET = "velozity_secret_2026";
 // --- TYPESCRIPT INTERFACES ---
 export interface AuthRequest extends Request {
   user?: {
-    id: string; // Change to 'number' if your Prisma ID is an Int
+    id: string;
     role: string;
     name: string;
   };
